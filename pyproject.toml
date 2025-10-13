@@ -1,0 +1,65 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "organizational-assistant"
+version = "0.1.0"
+description = "RAG-based assistant prototype for organizational knowledge transfer."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "UDLA Prototype Team" }]
+license = { text = "MIT" }
+dependencies = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.29",
+    "langchain>=0.2.11",
+    "langchain-community>=0.2.10",
+    "groq>=0.9",
+    "chromadb>=0.4.24",
+    "pydantic>=2.5",
+    "pydantic-settings>=2.2",
+    "python-dotenv>=1.0.1",
+    "pandas>=2.0",
+    "numpy>=1.24",
+    "sentence-transformers>=2.7",
+    "typing-extensions>=4.8",
+    "streamlit>=1.32",
+    "typer>=0.12",
+    "requests>=2.31",
+    "sqlalchemy>=2.0",
+    "ragas>=0.1.5",
+    "scikit-learn>=1.4",
+    "pyyaml>=6.0",
+    "pypdf>=4.0",
+    "docx2txt>=0.8",
+]
+keywords = ["knowledge management", "rag", "fastapi", "streamlit"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Development Status :: 3 - Alpha",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=4.1",
+    "ruff>=0.4",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+exclude = [
+    ".git",
+    "__pycache__",
+    "build",
+    "dist",
+    "data",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+addopts = "--maxfail=1 --disable-warnings"
