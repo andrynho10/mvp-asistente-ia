@@ -1,16 +1,40 @@
+# Python
 .venv/
 __pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Testing & Quality
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.coverage
+htmlcov/
+*.log
+
+# IDEs
 .idea/
 .vscode/
+*.swp
+*.swo
+*~
 .DS_Store
-build/
-dist/
-*.egg-info/
-*.log
+
+# Datos sensibles (NO subir al repo)
+.env
 data/embeddings/
 data/processed/
-data/raw/
-.env
+data/feedback/
+
+# Datos RAW (NO subir documentos reales)
+data/raw/*
+# Pero SÍ mantener el directorio y un ejemplo
+!data/raw/.gitkeep
+!data/raw/ejemplo_documento.txt

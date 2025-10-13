@@ -1,13 +1,19 @@
 from __future__ import annotations
 
 import json
+import logging
+import traceback
 from pathlib import Path
 from typing import Optional
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from langchain.schema import Document
-from langchain_community.vectorstores import Chroma
+from langchain_chroma import Chroma
+
+# Configurar logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 from config.settings import get_settings
 from src.rag_engine import ask_question, load_vector_store
@@ -54,12 +60,21 @@ def render_references(documents: list[Document]) -> list[SourceReference]:
     references = []
     for doc in documents:
         metadata = doc.metadata or {}
+
+        # Deserializar keywords si están en formato JSON string
+        keywords = metadata.get("keywords", [])
+        if isinstance(keywords, str):
+            try:
+                keywords = json.loads(keywords)
+            except (json.JSONDecodeError, TypeError):
+                keywords = []
+
         references.append(
             SourceReference(
                 source=str(metadata.get("source", "desconocido")),
                 chunk_id=metadata.get("chunk_id"),
                 process=metadata.get("process"),
-                keywords=metadata.get("keywords", []),
+                keywords=keywords if isinstance(keywords, list) else [],
             )
         )
     return references
@@ -72,19 +87,35 @@ def healthcheck() -> HealthResponse:
 
 @app.post("/ask", response_model=QueryResponse)
 def ask(request: QueryRequest, vector_store: Chroma = Depends(get_vector_store)) -> QueryResponse:
+    logger.info(f"Recibida pregunta: {request.question[:50]}...")
+
     if len(request.question.strip()) < 5:
         raise HTTPException(status_code=400, detail="La pregunta es demasiado corta.")
 
-    response = ask_question(
-        vector_store=vector_store,
-        question=request.question,
-        metadata_filters=request.metadata_filters,
-    )
-    answer = response.get("answer", "")
-    source_documents = response.get("source_documents", [])
-    references = render_references(source_documents)
+    try:
+        logger.info("Llamando a ask_question...")
+        response = ask_question(
+            vector_store=vector_store,
+            question=request.question,
+            metadata_filters=request.metadata_filters,
+        )
+        logger.info("ask_question completado exitosamente")
+    except Exception as exc:
+        logger.error(f"Error en ask_question: {exc}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=502, detail=f"Error al consultar el modelo: {exc}") from exc
 
-    return QueryResponse(answer=answer, references=references, raw_context=response["context_rendered"])
+    try:
+        answer = response.get("answer", "")
+        source_documents = response.get("source_documents", [])
+        references = render_references(source_documents)
+        logger.info(f"Respuesta generada exitosamente, {len(references)} referencias")
+
+        return QueryResponse(answer=answer, references=references, raw_context=response["context_rendered"])
+    except Exception as exc:
+        logger.error(f"Error al construir respuesta: {exc}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Error al procesar respuesta: {exc}") from exc
 
 
 def get_feedback_path() -> Path:

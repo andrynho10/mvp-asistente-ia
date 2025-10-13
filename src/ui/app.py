@@ -1,10 +1,16 @@
 from __future__ import annotations
 
 import json
+import sys
+from pathlib import Path
 from typing import Any, Dict
 
 import requests
 import streamlit as st
+
+ROOT_DIR = Path(__file__).resolve().parents[2]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.append(str(ROOT_DIR))
 
 from config.settings import get_settings
 

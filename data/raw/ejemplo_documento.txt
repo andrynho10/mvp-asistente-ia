@@ -1,0 +1,31 @@
+DOCUMENTO DE EJEMPLO - Política de Trabajo Remoto
+
+Objetivo:
+Establecer lineamientos claros para el trabajo remoto en la organización.
+
+Alcance:
+Aplica a todos los colaboradores con funciones compatibles con trabajo a distancia.
+
+Responsables:
+- Recursos Humanos: Gestión de solicitudes y seguimiento
+- TI: Soporte técnico y seguridad de equipos
+- Jefes de área: Aprobación y evaluación de desempeño
+
+Procedimiento:
+1. El colaborador envía solicitud formal a RRHH
+2. RRHH valida con el jefe directo la viabilidad
+3. TI configura acceso seguro VPN y entrega equipos
+4. Se firma acuerdo de trabajo remoto
+5. Seguimiento mensual de productividad
+
+Requisitos:
+- Conexión a internet estable (mínimo 10 Mbps)
+- Espacio de trabajo adecuado
+- Disponibilidad en horario laboral
+- Cumplimiento de normas de seguridad informática
+
+Vigencia:
+Esta política entra en vigencia el 1 de enero de 2025 y se revisará anualmente.
+
+Contacto:
+Para consultas, escribir a rrhh@organizacion.com

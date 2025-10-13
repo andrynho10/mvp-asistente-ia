@@ -39,6 +39,69 @@ DEFAULT_SPLITTER = RecursiveCharacterTextSplitter(
     separators=["\n\n", "\n", " ", ""],
 )
 
+SPANISH_STOP_WORDS = [
+    "a",
+    "ante",
+    "con",
+    "de",
+    "del",
+    "desde",
+    "donde",
+    "durante",
+    "el",
+    "ella",
+    "ellas",
+    "ellos",
+    "en",
+    "entre",
+    "era",
+    "eres",
+    "es",
+    "esa",
+    "ese",
+    "eso",
+    "esta",
+    "estaba",
+    "estamos",
+    "estan",
+    "este",
+    "esto",
+    "ha",
+    "habia",
+    "han",
+    "hasta",
+    "la",
+    "las",
+    "lo",
+    "los",
+    "mas",
+    "me",
+    "mi",
+    "mientras",
+    "muy",
+    "no",
+    "nos",
+    "nosotros",
+    "o",
+    "para",
+    "pero",
+    "por",
+    "que",
+    "se",
+    "sin",
+    "sobre",
+    "su",
+    "sus",
+    "tambien",
+    "te",
+    "tiene",
+    "tu",
+    "un",
+    "una",
+    "uno",
+    "y",
+]
+
 app = typer.Typer(help="Pipeline de ingesta y normalizacion de documentos organizacionales.")
 
 
@@ -94,7 +157,7 @@ def compute_keywords(chunks: Iterable[str], top_k: int = 5) -> List[List[str]]:
     if not non_empty_chunks:
         return [[] for _ in texts]
 
-    vectorizer = TfidfVectorizer(max_features=50, stop_words="spanish")
+    vectorizer = TfidfVectorizer(max_features=50, stop_words=SPANISH_STOP_WORDS)
     tfidf_matrix = vectorizer.fit_transform(non_empty_chunks)
     feature_names = vectorizer.get_feature_names_out()
     keywords_per_chunk = []

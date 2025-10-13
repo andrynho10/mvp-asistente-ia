@@ -2,12 +2,23 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import List, Tuple
+from typing import Any, Dict, List, Tuple
 
-from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_community.vectorstores import Chroma
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_chroma import Chroma
+
 
 from config.settings import get_settings
+
+
+def sanitize_metadata(metadata: Dict[str, Any]) -> Dict[str, Any]:
+    sanitized: Dict[str, Any] = {}
+    for key, value in metadata.items():
+        if isinstance(value, (str, int, float, bool)) or value is None:
+            sanitized[key] = value
+        else:
+            sanitized[key] = json.dumps(value, ensure_ascii=False)
+    return sanitized
 
 
 def read_chunks(chunks_path: Path) -> Tuple[List[str], List[dict]]:
@@ -23,7 +34,8 @@ def read_chunks(chunks_path: Path) -> Tuple[List[str], List[dict]]:
             if not text.strip():
                 continue
             texts.append(text)
-            metadatas.append(payload.get("metadata", {}))
+            raw_metadata = payload.get("metadata", {})
+            metadatas.append(sanitize_metadata(raw_metadata))
     return texts, metadatas
 
 
@@ -54,7 +66,6 @@ def build_vector_store(
 
     if texts:
         vector_store.add_texts(texts=texts, metadatas=metadatas)
-        vector_store.persist()
     return vector_store
 
 
