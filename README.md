@@ -3,7 +3,7 @@
 Prototipo basado en **RAG (Retrieval Augmented Generation)** para apoyar la capacitación e inducción de colaboradores, brindando acceso inteligente a procedimientos críticos, políticas y resoluciones históricas.
 
 **Stack tecnológico:**
-- 🧠 LLM: Groq (llama-3.3-70b-versatile)
+- 🧠 LLM: Ollama (llama3.1:8b-instruct local)
 - 📚 Vector Store: ChromaDB
 - 🔍 Embeddings: Sentence Transformers
 - ⚡ API: FastAPI
@@ -39,9 +39,24 @@ org-assistant/
 
 ### 1️⃣ Prerrequisitos
 
+**Software:**
 - Python 3.10 o superior
 - Git
-- Conexión a internet (para descargar modelos y acceder a Groq API)
+- **Ollama instalado** (para el modelo LLM local)
+  - Descarga desde: https://ollama.com
+  - Compatible con Windows, macOS y Linux
+  - Instala y asegúrate de que esté corriendo
+- Conexión a internet (solo para la instalación inicial y descarga de modelos)
+
+**Hardware recomendado:**
+- **Mínimo:** 8GB RAM, CPU moderna (puede funcionar solo con CPU)
+- **Recomendado:** 16GB+ RAM, GPU con 6GB+ VRAM (NVIDIA/AMD/Apple Silicon)
+- **Óptimo:** 32GB RAM, GPU con 8GB+ VRAM
+
+**Nota sobre modelos:**
+- `llama3.1:8b-instruct-q4_K_M` (recomendado): ~5GB de RAM/VRAM
+- `llama3.2:3b` (alternativa ligera): ~2GB de RAM/VRAM
+- Sin GPU: El modelo funcionará en CPU, será más lento pero funcional
 
 ### 2️⃣ Clonar el repositorio
 
@@ -85,14 +100,22 @@ copy .env.example .env
 cp .env.example .env
 ```
 
-**⚠️ IMPORTANTE:** Abre `.env` y configura tu API key de Groq:
+**⚠️ IMPORTANTE:** Antes de continuar, asegúrate de tener Ollama corriendo y descarga el modelo:
 
 ```bash
-# Obtén tu API key GRATIS en: https://console.groq.com/keys
-GROQ_API_KEY=tu_clave_aqui
+# Verifica que Ollama esté instalado
+ollama --version
+
+# Descarga el modelo recomendado (Llama 3.1 8B cuantizado)
+ollama pull llama3.1:8b-instruct-q4_K_M
+
+# Verifica que el modelo esté disponible
+ollama list
 ```
 
-El resto de la configuración ya tiene valores por defecto que funcionan bien.
+El archivo `.env` ya tiene la configuración correcta por defecto:
+- `OLLAMA_BASE_URL=http://localhost:11434` (puerto por defecto de Ollama)
+- `OLLAMA_MODEL=llama3.1:8b-instruct-q4_K_M` (modelo recomendado)
 
 ### 6️⃣ Agregar documentos
 
@@ -133,6 +156,49 @@ python test_api.py
 
 Si todos los tests pasan ✅, estás listo para usar el sistema.
 
+### 9️⃣ Verificar que hay documentos en el vector store
+
+```bash
+python check_docs.py
+```
+
+Este script muestra cuántos documentos hay en tu base de conocimientos. Si sale 0, ejecuta `python reingest.py`.
+
+---
+
+## 🔒 Confirmación de Modelo Local (100% Privado)
+
+Tu asistente funciona **completamente en local** sin enviar datos a internet:
+
+### ✅ Cómo verificarlo:
+
+**1. Revisa la configuración actual:**
+```bash
+python -c "from config.settings import get_settings; s = get_settings(); print(f'Modelo: {s.ollama_model}'); print(f'URL: {s.ollama_base_url}')"
+```
+
+Deberías ver:
+```
+Modelo: llama3.1:8b-instruct-q4_K_M
+URL: http://localhost:11434
+```
+
+**2. Monitorea el uso de recursos:**
+- Abre el monitor de sistema de tu SO (Administrador de Tareas en Windows, Activity Monitor en Mac, htop en Linux)
+- Observa el uso de CPU/GPU mientras haces una consulta
+- Verás un pico de uso porque el modelo se ejecuta localmente en tu máquina
+
+**3. Prueba sin internet:**
+- Desconecta tu WiFi
+- Haz una consulta
+- Funcionará perfectamente porque todo es local
+
+**Garantías de privacidad:**
+- ✅ Ningún dato sale de tu máquina
+- ✅ No hay API keys de servicios externos
+- ✅ Puedes apagar Ollama cuando no lo uses
+- ✅ El modelo se ejecuta 100% en tu hardware local (CPU/GPU)
+
 ---
 
 ## 🎯 Uso del Sistema
@@ -164,6 +230,36 @@ Desde la interfaz Streamlit:
 3. Haz clic en "Consultar"
 4. Revisa la respuesta y las referencias a documentos
 
+### Gestionar Ollama (liberar recursos cuando no lo uses)
+
+Ollama consume recursos solo durante las consultas. Para liberar completamente la memoria:
+
+**Windows:**
+```bash
+# Cerrar desde el Administrador de Tareas o:
+taskkill /IM ollama.exe /F
+
+# Para reiniciar: busca "Ollama" en el menú inicio
+```
+
+**macOS:**
+```bash
+# Detener:
+brew services stop ollama
+
+# Iniciar:
+brew services start ollama
+```
+
+**Linux:**
+```bash
+# Detener:
+sudo systemctl stop ollama
+
+# Iniciar:
+sudo systemctl start ollama
+```
+
 ---
 
 ## 🔄 Actualizar Documentos
@@ -188,16 +284,18 @@ python reingest.py
 
 ## 🐛 Solución de Problemas
 
-### Error: "GROQ_API_KEY no configurada"
+### Error: "No se puede conectar con Ollama"
 
-**Solución:** Verifica que `.env` existe y contiene tu API key válida.
+**Solución:** Asegúrate de que Ollama esté corriendo y el modelo esté descargado.
 
 ```bash
-# Verificar en Windows
-type .env | findstr GROQ_API_KEY
+# Verificar que Ollama esté corriendo
+ollama list
 
-# Verificar en Linux/Mac
-cat .env | grep GROQ_API_KEY
+# Si no está instalado, descarga desde: https://ollama.com
+
+# Descargar el modelo si no está disponible
+ollama pull llama3.1:8b-instruct-q4_K_M
 ```
 
 ### Error: "El vector store no se ha inicializado"
@@ -212,7 +310,8 @@ python reingest.py
 
 **Solución:** Revisa los logs del servidor FastAPI. Causas comunes:
 - El vector store no existe → Ejecuta `python reingest.py`
-- La API key de Groq es inválida → Verifica `.env`
+- Ollama no está corriendo → Verifica con `ollama list`
+- El modelo no está descargado → Ejecuta `ollama pull llama3.1:8b-instruct-q4_K_M`
 - Falta alguna dependencia → Ejecuta `pip install -e .`
 
 ### Los documentos no se reflejan en las respuestas
@@ -234,7 +333,7 @@ python test_api.py
 Este script verifica:
 - ✅ Configuración cargada correctamente
 - ✅ Vector store funcional
-- ✅ Conexión con Groq API
+- ✅ Conexión con Ollama (modelo local)
 - ✅ Pipeline completo end-to-end
 
 ---
@@ -306,14 +405,27 @@ EMBEDDING_MODEL=sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
 
 ### Cambiar el modelo LLM
 
-Edita `.env`:
+Primero descarga el modelo con Ollama:
 
 ```bash
-# Más rápido pero menos preciso:
-GROQ_MODEL=llama-3.1-8b-instant
+# Modelo más pequeño y rápido (3B):
+ollama pull llama3.2:3b
 
-# Equilibrado (recomendado):
-GROQ_MODEL=llama-3.3-70b-versatile
+# Modelo equilibrado (recomendado, 8B):
+ollama pull llama3.1:8b-instruct-q4_K_M
+
+# Modelo más grande y preciso (7B):
+ollama pull mistral:7b
+```
+
+Luego edita `.env`:
+
+```bash
+# Ejemplo para cambiar al modelo más pequeño:
+OLLAMA_MODEL=llama3.2:3b
+
+# O al modelo Mistral:
+OLLAMA_MODEL=mistral:7b
 ```
 
 ---
@@ -322,16 +434,17 @@ GROQ_MODEL=llama-3.3-70b-versatile
 
 - **Seguridad:** Nunca subas el archivo `.env` al repositorio (está en `.gitignore`)
 - **Datos:** Los documentos en `data/raw/` NO se suben al repo por defecto (solo ejemplos)
-- **API Key:** Cada desarrollador debe obtener su propia API key de Groq (es gratis)
-- **Performance:** El primer arranque descarga modelos (~90MB), es normal que tome tiempo
+- **Modelo Local:** El modelo LLM se ejecuta localmente en tu máquina. Asegúrate de tener Ollama corriendo
+- **Recursos:** El modelo 8B cuantizado usa ~5GB de VRAM/RAM. Puedes usar modelos más pequeños (3B) si tienes recursos limitados
+- **Performance:** El primer arranque descarga modelos (~90MB embeddings + ~5GB LLM), es normal que tome tiempo
 - **Feedback:** El sistema guarda feedback en `data/feedback/feedback.jsonl` para análisis
 
 ---
 
 ## 🔗 Enlaces Útiles
 
-- [Obtener API Key de Groq (GRATIS)](https://console.groq.com/keys)
-- [Documentación de Groq](https://console.groq.com/docs)
+- [Descargar Ollama](https://ollama.com)
+- [Modelos disponibles en Ollama](https://ollama.com/library)
 - [ChromaDB Documentation](https://docs.trychroma.com/)
 - [FastAPI Documentation](https://fastapi.tiangolo.com/)
 - [Streamlit Documentation](https://docs.streamlit.io/)

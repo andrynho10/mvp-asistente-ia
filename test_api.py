@@ -2,7 +2,13 @@
 from __future__ import annotations
 
 import sys
+import io
 from pathlib import Path
+
+# Configurar UTF-8 para stdout en Windows
+if sys.platform == "win32":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
 # Añadir el directorio raíz al path
 ROOT_DIR = Path(__file__).resolve().parent
@@ -18,8 +24,8 @@ print("\n1. Verificando configuración...")
 try:
     from config.settings import get_settings
     settings = get_settings()
-    print(f"   ✓ GROQ_API_KEY: {'***' + settings.groq_api_key[-8:] if settings.groq_api_key else 'NO CONFIGURADA'}")
-    print(f"   ✓ GROQ_MODEL: {settings.groq_model}")
+    print(f"   ✓ OLLAMA_BASE_URL: {settings.ollama_base_url}")
+    print(f"   ✓ OLLAMA_MODEL: {settings.ollama_model}")
     print(f"   ✓ VECTOR_STORE_PATH: {settings.vector_store_path}")
     print(f"   ✓ Vector store existe: {settings.vector_store_path.exists()}")
 except Exception as e:
@@ -42,24 +48,29 @@ except Exception as e:
     traceback.print_exc()
     sys.exit(1)
 
-# 3. Verificar cliente de Groq
-print("\n3. Verificando conexión con Groq...")
+# 3. Verificar cliente de Ollama
+print("\n3. Verificando conexión con Ollama...")
 try:
-    from src.rag_engine.pipeline import get_groq_client
-    client = get_groq_client()
-    print(f"   ✓ Cliente de Groq inicializado")
+    import ollama
+    from src.rag_engine.pipeline import get_ollama_client
+
+    client_config = get_ollama_client()
+    print(f"   ✓ Cliente de Ollama inicializado")
+    print(f"   ✓ Modelo configurado: {client_config['model']}")
 
     # Probar llamada simple
-    response = client.chat.completions.create(
-        model=settings.groq_model,
-        messages=[{"role": "user", "content": "Di hola"}],
-        max_tokens=10
+    response = ollama.chat(
+        model=client_config['model'],
+        messages=[{"role": "user", "content": "Di hola en una palabra"}],
     )
-    print(f"   ✓ Llamada a Groq exitosa: {response.choices[0].message.content}")
+    print(f"   ✓ Llamada a Ollama exitosa: {response['message']['content']}")
 except Exception as e:
-    print(f"   ✗ Error al conectar con Groq: {e}")
+    print(f"   ✗ Error al conectar con Ollama: {e}")
     import traceback
     traceback.print_exc()
+    print("\n   IMPORTANTE: Asegúrate de que:")
+    print("   1. Ollama esté instalado y corriendo")
+    print("   2. El modelo esté descargado: ollama pull llama3.1:8b-instruct-q4_K_M")
     sys.exit(1)
 
 # 4. Probar pipeline completo

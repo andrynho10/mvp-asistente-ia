@@ -7,8 +7,8 @@ from typing import Dict, Iterable, List
 
 import pandas as pd
 import typer
-from langchain.schema import Document
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_core.documents import Document
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import TextLoader
 from sklearn.feature_extraction.text import TfidfVectorizer
 
