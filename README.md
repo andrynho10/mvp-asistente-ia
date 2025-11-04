@@ -45,7 +45,8 @@ org-assistant/
 ├── ANALYTICS.md                # Documentación del sistema de métricas
 ├── MEMORIA_CONVERSACIONAL.md   # Documentación de memoria conversacional
 ├── SISTEMA_PREDICTIVO.md       # Documentación del motor predictivo
-└── ADMIN.md                    # Documentación del sistema de administración
+├── ADMIN.md                    # Documentación del sistema de administración
+└── MANUAL_USO_RAPIDO.md        # 📖 Manual rápido para usuarios y administradores
 ```
 
 ---
@@ -218,6 +219,8 @@ URL: http://localhost:11434
 
 ## 🎯 Uso del Sistema
 
+> 📖 **¿Primera vez usando el sistema?** Lee el [**MANUAL DE USO RÁPIDO**](MANUAL_USO_RAPIDO.md) - Guía paso a paso para usuarios y administradores.
+
 ### Iniciar los servicios
 
 **Terminal 1 - Servidor API:**
@@ -375,6 +378,13 @@ python run_admin_dashboard.py
 - ✅ Interface intuitiva para usuarios no técnicos
 
 📖 **Documentación completa:** Ver [ADMIN.md](ADMIN.md)
+
+**⚠️ Nota sobre documentos existentes:**
+Si tienes documentos en `data/raw/` que fueron agregados **antes** de usar el panel de admin, necesitas registrarlos:
+```bash
+python register_existing_docs.py
+```
+Esto solo es necesario una vez. Los documentos subidos mediante el panel se registran automáticamente.
 
 ---
 
