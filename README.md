@@ -29,16 +29,23 @@ org-assistant/
 ├── src/
 │   ├── knowledge_base/ # Pipeline de ingesta y procesamiento
 │   ├── rag_engine/     # Lógica RAG (retrieval + generación)
-│   ├── service/        # API FastAPI
-│   ├── ui/             # Interfaz Streamlit (app.py + chat_app.py)
+│   ├── service/        # API FastAPI + admin routes
+│   ├── ui/             # Interfaz Streamlit (app.py + chat_app.py + admin_dashboard.py)
 │   ├── analytics/      # Sistema de tracking y métricas
 │   ├── memory/         # Gestión de memoria conversacional
+│   ├── predictive/     # Motor predictivo y recomendaciones
+│   ├── admin/          # Gestión de documentos y feedback
 │   └── evaluation/     # Métricas y evaluación offline
-├── reingest.py                # Script de reingesta completa
-├── reset_knowledge.py         # Script para limpiar vector store
-├── run_analytics_dashboard.py # Script para lanzar dashboard de analytics
-├── test_api.py                # Diagnóstico del sistema
-└── REINGESTA.md               # Guía detallada de reingesta
+├── reingest.py                 # Script de reingesta completa
+├── reset_knowledge.py          # Script para limpiar vector store
+├── run_analytics_dashboard.py  # Script para lanzar dashboard de analytics
+├── run_admin_dashboard.py      # Script para lanzar panel de administración
+├── test_api.py                 # Diagnóstico del sistema
+├── REINGESTA.md                # Guía detallada de reingesta
+├── ANALYTICS.md                # Documentación del sistema de métricas
+├── MEMORIA_CONVERSACIONAL.md   # Documentación de memoria conversacional
+├── SISTEMA_PREDICTIVO.md       # Documentación del motor predictivo
+└── ADMIN.md                    # Documentación del sistema de administración
 ```
 
 ---
@@ -233,17 +240,24 @@ python run_chat.py
 python run_analytics_dashboard.py
 ```
 
+**Terminal 4 (Opcional) - Panel de Administración:**
+```bash
+python run_admin_dashboard.py
+```
+
 ### Acceder a la interfaz
 
 Abre tu navegador en:
 - **UI Básica:** http://localhost:8501
 - **Chat con Memoria:** http://localhost:8503
 - **Analytics Dashboard:** http://localhost:8502
+- **Admin Dashboard:** http://localhost:8504
 - **API Docs:** http://localhost:8000/docs
 - **API Analytics:** http://localhost:8000/analytics?days=7
 - **API Predictivo:** http://localhost:8000/predictive/insights?days=7
 - **API Recomendaciones:** http://localhost:8000/predictive/recommendations?question=vacaciones
 - **API Alertas:** http://localhost:8000/predictive/alerts
+- **API Admin Docs:** http://localhost:8000/admin/documents
 - **Health Check:** http://localhost:8000/health
 
 ### Hacer preguntas
@@ -320,9 +334,55 @@ sudo systemctl start ollama
 
 ---
 
-## 🔄 Actualizar Documentos
+## ⚙️ Panel de Administración
+
+### Gestión de Documentos sin Código
+
+El sistema incluye un **Panel de Administración** completo para gestionar documentos sin necesidad de conocimientos técnicos:
+
+**Acceso:**
+```bash
+python run_admin_dashboard.py
+# Abre en: http://localhost:8504
+```
+
+**Funcionalidades:**
+
+1. **📁 Gestión de Documentos:**
+   - Subir documentos (.txt, .md, .pdf, .docx, .doc)
+   - Listar todos los documentos indexados
+   - Eliminar documentos obsoletos
+   - Ver estadísticas del sistema
+   - Re-ingesta automática tras cambios
+
+2. **💬 Gestión de Feedback:**
+   - Revisar feedback negativo
+   - Categorizar problemas (info faltante, respuesta incorrecta, poco clara)
+   - Marcar como accionado con notas
+   - Ver top temas con problemas
+
+3. **📊 Estadísticas:**
+   - Tasa de satisfacción del usuario
+   - Total de feedback positivo/negativo
+   - Feedback pendiente de revisión
+   - Distribución por categoría
+
+**Ventajas del Panel de Admin:**
+- ✅ Sin necesidad de editar código o reiniciar servidor
+- ✅ Cambios reflejados inmediatamente
+- ✅ Detección automática de duplicados
+- ✅ Loop de mejora continua con feedback
+- ✅ Interface intuitiva para usuarios no técnicos
+
+📖 **Documentación completa:** Ver [ADMIN.md](ADMIN.md)
+
+---
+
+## 🔄 Actualizar Documentos (Método Manual)
 
 ### Reingesta completa (desde cero)
+
+**Nota:** Este método es para usuarios técnicos. **Se recomienda usar el Panel de Administración** (ver sección anterior).
 
 ```bash
 # 1. Resetear base de conocimientos

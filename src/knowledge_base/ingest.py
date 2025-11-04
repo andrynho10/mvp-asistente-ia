@@ -238,6 +238,71 @@ def run_ingestion() -> Path:
     return output_file
 
 
+def ingest_from_files(file_paths: List[Path], force_reingest: bool = False) -> Path:
+    """
+    Ejecuta ingesta incremental desde una lista específica de archivos.
+
+    Args:
+        file_paths: Lista de rutas de archivos a ingestar
+        force_reingest: Si True, sobrescribe el archivo de salida. Si False, agrega.
+
+    Returns:
+        Path al archivo de chunks generado
+    """
+    settings = get_settings()
+    raw_dir = settings.raw_data_path
+    processed_dir = settings.knowledge_base_path
+    processed_dir.mkdir(parents=True, exist_ok=True)
+
+    splitter = DEFAULT_SPLITTER
+    all_chunks: List[KnowledgeChunk] = []
+
+    for file_path in file_paths:
+        if not file_path.exists():
+            typer.echo(f"Advertencia: Archivo no encontrado: {file_path}")
+            continue
+
+        # Calcular metadata base
+        try:
+            relative_path = file_path.relative_to(raw_dir)
+        except ValueError:
+            # Archivo fuera del raw_dir
+            relative_path = file_path.name
+
+        base_metadata = {
+            "document_id": file_path.stem,
+            "source": str(relative_path),
+            "process": file_path.parts[-2] if len(file_path.parts) > 1 else "general",
+        }
+
+        try:
+            chunks = build_chunks(file_path, base_metadata, splitter=splitter)
+            all_chunks.extend(chunks)
+            typer.echo(f"Procesado: {file_path.name} ({len(chunks)} chunks)")
+        except Exception as e:
+            typer.echo(f"Error al procesar {file_path.name}: {e}")
+            continue
+
+    output_file = processed_dir / "knowledge_chunks.jsonl"
+
+    if force_reingest:
+        # Sobrescribir completamente
+        persist_chunks(all_chunks, output_file)
+        typer.echo(f"Re-ingesta completa: {len(all_chunks)} chunks en {output_file}")
+    else:
+        # Modo append (agregar)
+        persist_chunks(all_chunks, output_file)
+        typer.echo(f"Ingesta incremental: {len(all_chunks)} chunks agregados a {output_file}")
+
+    # Actualizar vector store
+    from src.rag_engine.vector_store import setup_vector_store
+
+    setup_vector_store(output_file)
+    typer.echo("Vector store actualizado")
+
+    return output_file
+
+
 @app.command()
 def ingest() -> None:
     """Ejecuta el pipeline de ingestion completo."""

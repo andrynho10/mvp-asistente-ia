@@ -89,3 +89,107 @@ class RecommendationsResponse(BaseModel):
     similar_questions: list[dict[str, Any]]
     collaborative_recommendations: list[dict[str, Any]]
     next_steps: list[dict[str, Any]]
+
+
+# --- Admin API Schemas ---
+
+
+class DocumentUploadResponse(BaseModel):
+    """Respuesta al subir un documento."""
+
+    id: str
+    filename: str
+    size_bytes: int
+    uploaded_at: str
+    status: str = "active"
+
+
+class DocumentInfo(BaseModel):
+    """Información de un documento."""
+
+    id: str
+    filename: str
+    size_bytes: int
+    uploaded_at: str
+    file_hash: str
+    status: str
+
+
+class DocumentListResponse(BaseModel):
+    """Respuesta con lista de documentos."""
+
+    documents: list[DocumentInfo]
+    total: int
+
+
+class DocumentDeleteResponse(BaseModel):
+    """Respuesta al eliminar un documento."""
+
+    status: str
+    doc_id: str
+    filename: str
+
+
+class IngestionStatusResponse(BaseModel):
+    """Estado del proceso de ingesta."""
+
+    status: str
+    message: str
+    documents_processed: Optional[int] = None
+    time_taken_seconds: Optional[float] = None
+
+
+class DocumentStatsResponse(BaseModel):
+    """Estadísticas del sistema de documentos."""
+
+    total_documents: int
+    deleted_documents: int
+    total_size_bytes: int
+    total_size_mb: float
+    last_updated: Optional[str]
+    last_ingestion: Optional[str]
+
+
+class FeedbackItem(BaseModel):
+    """Item de feedback para revisión."""
+
+    id: int
+    query_id: int
+    question: str
+    comment: Optional[str]
+    timestamp: str
+    category: Optional[str]
+    status: str
+    action_notes: Optional[str]
+
+
+class FeedbackListResponse(BaseModel):
+    """Respuesta con lista de feedback."""
+
+    feedback: list[FeedbackItem]
+    total: int
+
+
+class FeedbackCategorizeRequest(BaseModel):
+    """Request para categorizar feedback."""
+
+    category: str = Field(..., description="missing_info, incorrect_answer, unclear, other")
+
+
+class FeedbackActionRequest(BaseModel):
+    """Request para marcar feedback como accionado."""
+
+    action_notes: str = Field(..., min_length=5, description="Notas sobre la acción tomada")
+
+
+class FeedbackStatsResponse(BaseModel):
+    """Estadísticas de feedback."""
+
+    total_feedback: int
+    negative_feedback: int
+    positive_feedback: int
+    by_category: dict[str, int]
+    by_status: dict[str, int]
+    pending_review: int
+    actioned: int
+    top_issues: list[dict[str, Any]]

@@ -21,6 +21,7 @@ from src.analytics import AnalyticsTracker, MetricsCalculator
 from src.memory import SessionManager
 from src.predictive import PatternAnalyzer, Recommender, AnomalyDetector
 from src.rag_engine import ask_question, load_vector_store
+from src.service.admin_routes import admin_router
 from src.service.schemas import (
     AnalyticsResponse,
     FeedbackRequest,
@@ -38,6 +39,9 @@ from src.service.schemas import (
 
 settings = get_settings()
 app = FastAPI(title="Asistente Organizacional", version="0.1.0")
+
+# Incluir rutas de administración
+app.include_router(admin_router)
 
 origins = [origin.strip() for origin in settings.allowed_origins.split(",")]
 app.add_middleware(
