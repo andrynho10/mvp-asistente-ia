@@ -8,6 +8,7 @@ from langchain_core.documents import Document
 from langchain_community.vectorstores import Chroma
 
 from config.settings import get_settings
+from src.memory import ConversationMemory
 
 SYSTEM_PROMPT = (
     "Eres un asistente corporativo especializado en procedimientos internos. "
@@ -42,23 +43,59 @@ def render_context(documents: List[Document]) -> str:
     return "\n".join(rendered)
 
 
-def build_messages(question: str, context: str) -> List[Dict[str, str]]:
-    user_prompt = (
-        "Pregunta del colaborador:\n"
-        f"{question}\n\n"
-        "Información recuperada de la base de conocimientos:\n"
-        f"{context}\n\n"
-        "Instrucciones:\n"
-        "- Responde SOLO con la información del contexto anterior\n"
-        "- Si el contexto está vacío o no responde la pregunta, indícalo claramente\n"
-        "- NO uses conocimiento general, solo usa lo que está en el contexto\n"
-        "- Elabora una respuesta estructurada con pasos claros y responsables involucrados\n"
-        "- Menciona las fuentes cuando estén disponibles"
-    )
-    return [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": user_prompt},
-    ]
+def build_messages(
+    question: str, context: str, conversation_memory: Optional[ConversationMemory] = None
+) -> List[Dict[str, str]]:
+    """
+    Construye los mensajes para el LLM, opcionalmente incluyendo historial conversacional.
+
+    Args:
+        question: Pregunta actual del usuario
+        context: Contexto recuperado del vector store
+        conversation_memory: Memoria conversacional (opcional)
+
+    Returns:
+        Lista de mensajes formateados para el LLM
+    """
+    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+
+    # Agregar historial si existe
+    if conversation_memory and conversation_memory.messages:
+        # Incluir el historial completo en el prompt
+        history_context = conversation_memory.get_context_string()
+        user_prompt = (
+            f"{history_context}\n\n"
+            "---\n\n"
+            "Pregunta actual del colaborador:\n"
+            f"{question}\n\n"
+            "Información recuperada de la base de conocimientos:\n"
+            f"{context}\n\n"
+            "Instrucciones:\n"
+            "- Ten en cuenta el historial de la conversación para dar contexto a tu respuesta\n"
+            "- Si el usuario hace referencia a algo anterior, usa el historial\n"
+            "- Responde SOLO con la información del contexto y el historial\n"
+            "- Si el contexto está vacío o no responde la pregunta, indícalo claramente\n"
+            "- NO uses conocimiento general, solo usa lo que está en el contexto\n"
+            "- Elabora una respuesta estructurada con pasos claros y responsables involucrados\n"
+            "- Menciona las fuentes cuando estén disponibles"
+        )
+    else:
+        # Sin historial (primera pregunta o sin memoria)
+        user_prompt = (
+            "Pregunta del colaborador:\n"
+            f"{question}\n\n"
+            "Información recuperada de la base de conocimientos:\n"
+            f"{context}\n\n"
+            "Instrucciones:\n"
+            "- Responde SOLO con la información del contexto anterior\n"
+            "- Si el contexto está vacío o no responde la pregunta, indícalo claramente\n"
+            "- NO uses conocimiento general, solo usa lo que está en el contexto\n"
+            "- Elabora una respuesta estructurada con pasos claros y responsables involucrados\n"
+            "- Menciona las fuentes cuando estén disponibles"
+        )
+
+    messages.append({"role": "user", "content": user_prompt})
+    return messages
 
 
 def call_local_llm(messages: List[Dict[str, str]], temperature: float = 0.2) -> Dict[str, Any]:
@@ -107,12 +144,31 @@ def ask_question(
     question: str,
     metadata_filters: Optional[Dict[str, Any]] = None,
     top_k: int = 4,
+    conversation_memory: Optional[ConversationMemory] = None,
 ) -> Dict[str, Any]:
+    """
+    Responde una pregunta usando RAG, opcionalmente con memoria conversacional.
+
+    Args:
+        vector_store: Vector store con documentos indexados
+        question: Pregunta del usuario
+        metadata_filters: Filtros opcionales de metadata
+        top_k: Número de documentos a recuperar
+        conversation_memory: Memoria conversacional (opcional)
+
+    Returns:
+        Dict con answer, source_documents, context_rendered, raw_response
+    """
     documents = retrieve_documents(vector_store, question, metadata_filters, top_k=top_k)
     context = render_context(documents)
-    messages = build_messages(question, context)
+    messages = build_messages(question, context, conversation_memory)
     raw_response = call_local_llm(messages)
     content = raw_response["choices"][0]["message"]["content"].strip()
+
+    # Actualizar memoria si se proporciona
+    if conversation_memory:
+        conversation_memory.add_exchange(question, content)
+
     return {
         "answer": content,
         "source_documents": documents,

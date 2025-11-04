@@ -27,6 +27,7 @@ dependencies = [
     "sentence-transformers>=2.7",
     "typing-extensions>=4.8",
     "streamlit>=1.32",
+    "plotly>=5.18",
     "typer>=0.12",
     "requests>=2.31",
     "sqlalchemy>=2.0",

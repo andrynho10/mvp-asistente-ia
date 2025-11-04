@@ -8,6 +8,8 @@ Prototipo basado en **RAG (Retrieval Augmented Generation)** para apoyar la capa
 - 🔍 Embeddings: Sentence Transformers
 - ⚡ API: FastAPI
 - 🎨 UI: Streamlit
+- 📊 Analytics: SQLite + Plotly
+- 💬 Memoria Conversacional: SQLite con gestión de sesiones
 - 🐍 Python 3.10+
 
 ---
@@ -20,17 +22,23 @@ org-assistant/
 ├── data/
 │   ├── raw/            # 📂 Documentos originales (.txt, .pdf, .docx, etc.)
 │   ├── processed/      # 📝 Chunks procesados (generado automáticamente)
-│   └── embeddings/     # 🗄️ Vector store ChromaDB (generado automáticamente)
+│   ├── embeddings/     # 🗄️ Vector store ChromaDB (generado automáticamente)
+│   ├── analytics/      # 📊 Base de datos de métricas (generado automáticamente)
+│   ├── sessions/       # 💬 Sesiones conversacionales (generado automáticamente)
+│   └── feedback/       # 📝 Feedback de usuarios (generado automáticamente)
 ├── src/
 │   ├── knowledge_base/ # Pipeline de ingesta y procesamiento
 │   ├── rag_engine/     # Lógica RAG (retrieval + generación)
 │   ├── service/        # API FastAPI
-│   ├── ui/             # Interfaz Streamlit
+│   ├── ui/             # Interfaz Streamlit (app.py + chat_app.py)
+│   ├── analytics/      # Sistema de tracking y métricas
+│   ├── memory/         # Gestión de memoria conversacional
 │   └── evaluation/     # Métricas y evaluación offline
-├── reingest.py         # Script de reingesta completa
-├── reset_knowledge.py  # Script para limpiar vector store
-├── test_api.py         # Diagnóstico del sistema
-└── REINGESTA.md        # Guía detallada de reingesta
+├── reingest.py                # Script de reingesta completa
+├── reset_knowledge.py         # Script para limpiar vector store
+├── run_analytics_dashboard.py # Script para lanzar dashboard de analytics
+├── test_api.py                # Diagnóstico del sistema
+└── REINGESTA.md               # Guía detallada de reingesta
 ```
 
 ---
@@ -210,16 +218,32 @@ URL: http://localhost:11434
 uvicorn src.service.app:app --reload
 ```
 
-**Terminal 2 - Interfaz Streamlit:**
+**Terminal 2 - Interfaz Streamlit (Básica):**
 ```bash
 streamlit run src/ui/app.py
+```
+
+**O Terminal 2 - Interfaz de Chat (Con memoria conversacional):**
+```bash
+python run_chat.py
+```
+
+**Terminal 3 (Opcional) - Dashboard de Analytics:**
+```bash
+python run_analytics_dashboard.py
 ```
 
 ### Acceder a la interfaz
 
 Abre tu navegador en:
-- **Streamlit UI:** http://localhost:8501
+- **UI Básica:** http://localhost:8501
+- **Chat con Memoria:** http://localhost:8503
+- **Analytics Dashboard:** http://localhost:8502
 - **API Docs:** http://localhost:8000/docs
+- **API Analytics:** http://localhost:8000/analytics?days=7
+- **API Predictivo:** http://localhost:8000/predictive/insights?days=7
+- **API Recomendaciones:** http://localhost:8000/predictive/recommendations?question=vacaciones
+- **API Alertas:** http://localhost:8000/predictive/alerts
 - **Health Check:** http://localhost:8000/health
 
 ### Hacer preguntas
@@ -229,6 +253,40 @@ Desde la interfaz Streamlit:
 2. (Opcional) Agrega filtros por proceso o responsable
 3. Haz clic en "Consultar"
 4. Revisa la respuesta y las referencias a documentos
+5. Proporciona feedback (útil/no útil) para mejorar el sistema
+
+### Usar el Chat con Memoria Conversacional
+
+La nueva interfaz de chat (http://localhost:8503) permite:
+- **Conversaciones naturales:** El asistente recuerda el contexto
+- **Preguntas de seguimiento:** "¿Y si...?", "Dame más detalles sobre eso"
+- **Historial persistente:** Mantiene la conversación activa durante 24 horas
+- **Referencias inline:** Ve las fuentes sin salir del chat
+- **Limpiar chat:** Reinicia la conversación cuando quieras
+
+Ejemplo de conversación:
+```
+Usuario: ¿Cuál es el proceso de solicitud de vacaciones?
+Asistente: [Responde con el proceso completo]
+
+Usuario: ¿Y si necesito más de 15 días?
+Asistente: [Responde considerando el contexto anterior]
+
+Usuario: ¿Quién debe aprobar la solicitud?
+Asistente: [Responde con información específica del proceso]
+```
+
+### Monitorear métricas de uso
+
+Desde el Dashboard de Analytics (http://localhost:8502):
+- **KPIs principales:** Consultas totales, satisfacción, cobertura, tiempo de respuesta
+- **Volumen:** Tendencia de consultas por día
+- **Satisfacción:** Tendencia y gauge de satisfacción del usuario
+- **Top consultas:** Preguntas más frecuentes
+- **Top temas:** Procesos más consultados
+- **Cobertura:** Distribución de consultas exitosas vs fallidas
+- **Impacto organizacional:** Tiempo ahorrado, eficiencia del sistema
+- **Recomendaciones:** Sugerencias automáticas de mejora
 
 ### Gestionar Ollama (liberar recursos cuando no lo uses)
 
@@ -345,8 +403,10 @@ Este script verifica:
 | `python reingest.py` | Reingesta completa de documentos |
 | `python reset_knowledge.py` | Limpia vector store y procesados |
 | `python test_api.py` | Diagnóstico completo del sistema |
+| `python run_chat.py` | Lanzar chat con memoria conversacional |
+| `python run_analytics_dashboard.py` | Lanzar dashboard de analytics |
 | `uvicorn src.service.app:app --reload` | Iniciar servidor API |
-| `streamlit run src/ui/app.py` | Iniciar interfaz web |
+| `streamlit run src/ui/app.py` | Iniciar interfaz web básica |
 
 ---
 
