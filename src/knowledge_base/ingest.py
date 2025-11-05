@@ -295,9 +295,9 @@ def ingest_from_files(file_paths: List[Path], force_reingest: bool = False) -> P
         typer.echo(f"Ingesta incremental: {len(all_chunks)} chunks agregados a {output_file}")
 
     # Actualizar vector store
-    from src.rag_engine.vector_store import setup_vector_store
+    from src.rag_engine.vector_store import build_vector_store
 
-    setup_vector_store(output_file)
+    build_vector_store(chunks_path=output_file)
     typer.echo("Vector store actualizado")
 
     return output_file

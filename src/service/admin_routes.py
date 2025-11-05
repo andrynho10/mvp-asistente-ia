@@ -191,9 +191,8 @@ def trigger_ingestion(
         doc_manager.mark_ingestion_complete()
 
         # Invalidar cache del vector store para forzar recarga
-        from src.service.app import _cached_vector_store
-
-        globals()["_cached_vector_store"] = None
+        import src.service.app as app_module
+        app_module._cached_vector_store = None
 
         time_taken = time.time() - start_time
 
