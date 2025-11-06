@@ -263,8 +263,9 @@ def main():
         successful_queries = coverage.get("successful_queries", 0) or 0
 
         if successful_queries > 0:
-            # Asumiendo 5 minutos promedio por consulta a un humano
-            time_saved_minutes = successful_queries * 5
+            # Baseline: tiempo promedio por consulta manual (ajustable)
+            BASELINE_MINUTES = 5  # ← CAMBIAR ESTE VALOR según investigación empírica
+            time_saved_minutes = successful_queries * BASELINE_MINUTES
             time_saved_hours = time_saved_minutes / 60
 
             st.metric(
@@ -274,7 +275,7 @@ def main():
             )
 
             st.info(
-                f"**Cálculo:** {successful_queries} consultas × 5 min/consulta = {time_saved_minutes:.0f} minutos"
+                f"**Cálculo:** {successful_queries} consultas × {BASELINE_MINUTES} min/consulta = {time_saved_minutes:.0f} minutos"
             )
         else:
             st.info("No hay datos suficientes para calcular el tiempo ahorrado. Usa el sistema para generar métricas.")
@@ -284,14 +285,16 @@ def main():
 
         if avg_time and avg_time > 0:
             avg_response = avg_time / 1000  # convertir a segundos
+            BASELINE_MINUTES = 5  # ← CAMBIAR ESTE VALOR (debe coincidir con col1)
+            baseline_seconds = BASELINE_MINUTES * 60
 
             st.metric(
                 "Velocidad de Respuesta",
                 f"{avg_response:.2f} seg",
-                delta="vs ~5 min (consulta humana)",
+                delta=f"vs ~{BASELINE_MINUTES} min (consulta humana)",
             )
 
-            efficiency_factor = 300 / avg_response  # 300 seg = 5 min
+            efficiency_factor = baseline_seconds / avg_response
             st.info(f"**{efficiency_factor:.1f}x más rápido** que consulta humana tradicional")
         else:
             st.info("No hay datos de tiempo de respuesta. Realiza consultas para generar métricas.")
