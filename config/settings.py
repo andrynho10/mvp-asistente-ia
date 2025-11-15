@@ -76,6 +76,90 @@ class Settings(BaseSettings):
         description="Ruta a la llave privada SSL (para desarrollo)"
     )
 
+    # Configuración de Confidencialidad y GDPR (RS5)
+    enable_pii_masking: bool = Field(
+        default=True,
+        alias="ENABLE_PII_MASKING",
+        description="Activar enmascaramiento automático de PII en logs"
+    )
+    pii_masking_strategy: str = Field(
+        default="redact",
+        alias="PII_MASKING_STRATEGY",
+        description="Estrategia de enmascaramiento: 'redact', 'hash', 'partial', 'replace'"
+    )
+    enable_data_retention: bool = Field(
+        default=True,
+        alias="ENABLE_DATA_RETENTION",
+        description="Activar políticas de retención de datos"
+    )
+    session_retention_days: int = Field(
+        default=30,
+        alias="SESSION_RETENTION_DAYS",
+        description="Días para retener datos de sesión"
+    )
+    analytics_retention_days: int = Field(
+        default=90,
+        alias="ANALYTICS_RETENTION_DAYS",
+        description="Días para retener datos de análisis"
+    )
+    activity_log_retention_days: int = Field(
+        default=180,
+        alias="ACTIVITY_LOG_RETENTION_DAYS",
+        description="Días para retener logs de actividad"
+    )
+    auth_log_retention_days: int = Field(
+        default=365,
+        alias="AUTH_LOG_RETENTION_DAYS",
+        description="Días para retener logs de autenticación (auditoria)"
+    )
+    audit_db_path: Path = Field(
+        default=Path("data/audit/retention_audit.db"),
+        alias="AUDIT_DB_PATH",
+        description="Ruta de la BD de auditoría de retención"
+    )
+    logs_dir: Path = Field(
+        default=Path("logs"),
+        alias="LOGS_DIR",
+        description="Directorio para almacenar logs"
+    )
+    enable_structured_logging: bool = Field(
+        default=True,
+        alias="ENABLE_STRUCTURED_LOGGING",
+        description="Usar formato JSON para logs estructurados"
+    )
+    log_level: str = Field(
+        default="INFO",
+        alias="LOG_LEVEL",
+        description="Nivel de logging (DEBUG, INFO, WARNING, ERROR, CRITICAL)"
+    )
+
+    # GDPR/Ley 19.628 - Derechos del usuario
+    enable_gdpr_features: bool = Field(
+        default=True,
+        alias="ENABLE_GDPR_FEATURES",
+        description="Activar características de GDPR/Ley 19.628"
+    )
+    user_consent_required: bool = Field(
+        default=True,
+        alias="USER_CONSENT_REQUIRED",
+        description="Requerir consentimiento explícito antes de procesar datos"
+    )
+    allow_data_export: bool = Field(
+        default=True,
+        alias="ALLOW_DATA_EXPORT",
+        description="Permitir a usuarios exportar sus datos"
+    )
+    allow_data_deletion: bool = Field(
+        default=True,
+        alias="ALLOW_DATA_DELETION",
+        description="Permitir a usuarios eliminar sus datos (derecho al olvido)"
+    )
+    deletion_grace_period_days: int = Field(
+        default=30,
+        alias="DELETION_GRACE_PERIOD_DAYS",
+        description="Días de período de gracia antes de eliminar permanentemente"
+    )
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 
