@@ -1,0 +1,44 @@
+# Dockerfile para Streamlit UI
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+LABEL maintainer="Org-Assistant Team"
+LABEL description="Streamlit UI for Org-Assistant RAG"
+
+# Instalar dependencias
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Crear usuario no-root
+RUN useradd -m -u 1000 appuser
+
+# Copiar código y instalar dependencias
+COPY pyproject.toml pyproject.toml
+RUN pip install --upgrade pip && pip install -e .
+
+COPY . .
+
+# Crear directorios
+RUN mkdir -p /data/embeddings/chroma /data/auth /data/analytics /app/logs && \
+    chown -R appuser:appuser /data /app/logs
+
+# Cambiar usuario
+USER appuser
+
+# Crear .streamlit config
+RUN mkdir -p ~/.streamlit && \
+    echo "[client]" > ~/.streamlit/config.toml && \
+    echo "showErrorDetails = true" >> ~/.streamlit/config.toml && \
+    echo "[logger]" >> ~/.streamlit/config.toml && \
+    echo "level = \"info\"" >> ~/.streamlit/config.toml
+
+EXPOSE 8501
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:8501/_stcore/health || exit 1
+
+CMD ["streamlit", "run", "src/ui/app.py", "--server.port=8501", "--server.address=0.0.0.0"]

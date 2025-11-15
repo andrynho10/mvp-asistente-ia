@@ -1,0 +1,179 @@
+# Docker Compose para Org-Assistant en Producción
+# Servicios: FastAPI + Streamlit + nginx + (opcional) Ollama
+#
+# Uso:
+#   docker-compose up -d
+#   docker-compose logs -f
+#   docker-compose down
+
+version: '3.8'
+
+services:
+
+  # ============================================================================
+  # FastAPI Backend (API)
+  # ============================================================================
+  fastapi:
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile
+    container_name: org-assistant-api
+    restart: unless-stopped
+    environment:
+      # Ollama (local o remoto)
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_MODEL: llama3.1:8b-instruct-q4_K_M
+
+      # Servidor
+      SERVICE_HOST: 0.0.0.0
+      SERVICE_PORT: 8000
+
+      # Base de datos
+      VECTOR_STORE_PATH: /data/embeddings/chroma
+      KNOWLEDGE_BASE_PATH: /data/processed
+      AUTH_DB_PATH: /data/auth/auth.db
+
+      # Seguridad (RS1, RS2)
+      SECRET_KEY: ${SECRET_KEY:?error}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?error}
+
+      # CORS
+      ALLOWED_ORIGINS: https://org-assistant.example.com
+
+      # Logging
+      LOG_LEVEL: info
+    volumes:
+      - ./data:/data
+      - ./logs:/app/logs
+    ports:
+      - "8000:8000"
+    depends_on:
+      - ollama
+    networks:
+      - org-assistant-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ============================================================================
+  # Streamlit UI
+  # ============================================================================
+  streamlit:
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile.streamlit
+    container_name: org-assistant-ui
+    restart: unless-stopped
+    environment:
+      API_BASE_URL: http://fastapi:8000
+      STREAMLIT_SERVER_PORT: 8501
+      STREAMLIT_SERVER_ADDRESS: 0.0.0.0
+      STREAMLIT_SERVER_HEADLESS: "true"
+    volumes:
+      - ./data:/data
+    ports:
+      - "8501:8501"
+    depends_on:
+      - fastapi
+    networks:
+      - org-assistant-network
+
+  # ============================================================================
+  # Ollama (LLM local)
+  # ============================================================================
+  ollama:
+    image: ollama/ollama:latest
+    container_name: org-assistant-ollama
+    restart: unless-stopped
+    environment:
+      OLLAMA_BASE_URL: http://0.0.0.0:11434
+    volumes:
+      - ./ollama_models:/root/.ollama
+    ports:
+      - "11434:11434"
+    networks:
+      - org-assistant-network
+    # Comentar si Ollama está en otra máquina
+
+  # ============================================================================
+  # nginx (Reverse Proxy + SSL)
+  # ============================================================================
+  nginx:
+    image: nginx:alpine
+    container_name: org-assistant-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - ./logs/nginx:/var/log/nginx
+    depends_on:
+      - fastapi
+      - streamlit
+    networks:
+      - org-assistant-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ============================================================================
+  # Certbot (Let's Encrypt - Renovación automática)
+  # ============================================================================
+  certbot:
+    image: certbot/certbot:latest
+    container_name: org-assistant-certbot
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt
+      - /var/www/certbot:/var/www/certbot
+    entrypoint: /bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h; done'
+    networks:
+      - org-assistant-network
+
+networks:
+  org-assistant-network:
+    driver: bridge
+
+volumes:
+  # Datos persistentes
+  org-assistant-data:
+    driver: local
+  ollama-models:
+    driver: local
+
+# ============================================================================
+# Instrucciones de Setup
+# ============================================================================
+#
+# 1. PREREQUISITOS:
+#    - Docker + Docker Compose instalado
+#    - Dominio DNS configurado
+#    - Puerto 80 y 443 accesibles
+#
+# 2. VARIABLES DE ENTORNO (.env):
+#    SECRET_KEY=<generar_con_secrets.token_urlsafe(32)>
+#    ENCRYPTION_KEY=<generar_con_Fernet.generate_key()>
+#
+# 3. CERTIFICADOS SSL:
+#    # Primera vez - obtener certificado
+#    docker-compose run --rm certbot certonly --webroot -w /var/www/certbot \
+#        -d org-assistant.example.com -d www.org-assistant.example.com
+#
+# 4. INICIAR SERVICIOS:
+#    docker-compose up -d
+#
+# 5. DESCARGAR MODELOS OLLAMA:
+#    docker-compose exec ollama ollama pull llama3.1:8b-instruct-q4_K_M
+#
+# 6. VERIFICAR STATUS:
+#    docker-compose ps
+#    docker-compose logs -f fastapi
+#
+# 7. APAGAR:
+#    docker-compose down

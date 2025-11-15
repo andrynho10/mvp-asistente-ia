@@ -44,6 +44,38 @@ class Settings(BaseSettings):
         description="Ruta de la BD de autenticación"
     )
 
+    # Configuración de Cifrado (RS4)
+    encryption_key: str = Field(
+        default="",  # Debe ser generada o cargada desde .env
+        alias="ENCRYPTION_KEY",
+        description="Llave Fernet para cifrado de datos sensibles (generar con cryptography.fernet.Fernet.generate_key())"
+    )
+    enable_db_encryption: bool = Field(
+        default=True,
+        alias="ENABLE_DB_ENCRYPTION",
+        description="Activar cifrado en bases de datos"
+    )
+    encrypted_keys_path: Path = Field(
+        default=Path("data/encrypted_keys"),
+        alias="ENCRYPTED_KEYS_PATH",
+        description="Directorio para almacenar claves de cifrado"
+    )
+    ssl_enabled: bool = Field(
+        default=False,
+        alias="SSL_ENABLED",
+        description="Activar HTTPS/SSL en desarrollo. En producción usar nginx/reverse proxy"
+    )
+    ssl_certfile: Path | None = Field(
+        default=None,
+        alias="SSL_CERTFILE",
+        description="Ruta al certificado SSL (para desarrollo)"
+    )
+    ssl_keyfile: Path | None = Field(
+        default=None,
+        alias="SSL_KEYFILE",
+        description="Ruta a la llave privada SSL (para desarrollo)"
+    )
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 

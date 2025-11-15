@@ -11,6 +11,8 @@ import sqlite3
 from config.settings import get_settings
 from src.auth.authentication import get_auth_manager
 from src.auth.models import User, UserCreate, UserRole, UserResponse
+from src.security.encryption import EncryptionManager, load_or_create_encryption_key
+from src.security.sqlite_cipher import EncryptedSQLiteConnection
 
 logger = logging.getLogger(__name__)
 
@@ -18,12 +20,13 @@ logger = logging.getLogger(__name__)
 class UserRepository:
     """Repositorio para gestionar usuarios en SQLite."""
 
-    def __init__(self, db_path: Path = None):
+    def __init__(self, db_path: Path = None, use_encryption: bool = True):
         """
         Inicializar el repositorio.
 
         Args:
             db_path: Ruta de la BD (default: desde settings)
+            use_encryption: Si True, cifra contraseñas en la BD
         """
         if db_path is None:
             settings = get_settings()
@@ -31,6 +34,17 @@ class UserRepository:
 
         self.db_path = db_path
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Inicializar gestor de cifrado
+        self.encryption_manager = None
+        if use_encryption:
+            settings = get_settings()
+            if settings.encryption_key:
+                try:
+                    self.encryption_manager = EncryptionManager(settings.encryption_key)
+                    logger.info("Cifrado de BD habilitado")
+                except Exception as e:
+                    logger.warning(f"No se pudo inicializar cifrado: {e}. Usando sin cifrado.")
 
         # Inicializar la BD
         self._init_db()
@@ -108,9 +122,14 @@ class UserRepository:
             last_login=None,
         )
 
-        # Guardar en BD
+        # Guardar en BD (con cifrado si está disponible)
         try:
             with sqlite3.connect(self.db_path) as conn:
+                # Cifrar contraseña si hay encryption_manager
+                hashed_password = user.hashed_password
+                if self.encryption_manager:
+                    hashed_password = self.encryption_manager.encrypt(hashed_password)
+
                 conn.execute(
                     """
                     INSERT INTO users
@@ -122,8 +141,8 @@ class UserRepository:
                         user.username,
                         user.email,
                         user.full_name,
-                        user.hashed_password,
-                        user.role,
+                        hashed_password,
+                        user.role.value,  # Convertir enum a string
                         user.is_active,
                         now,
                     ),
@@ -292,8 +311,7 @@ class UserRepository:
 
             return deactivated
 
-    @staticmethod
-    def _row_to_user(row: sqlite3.Row) -> User:
+    def _row_to_user(self, row: sqlite3.Row) -> User:
         """
         Convertir una fila de la BD a un objeto User.
 
@@ -303,12 +321,21 @@ class UserRepository:
         Returns:
             Usuario
         """
+        # Descifrar contraseña si está cifrada
+        hashed_password = row["hashed_password"]
+        if self.encryption_manager and hashed_password:
+            try:
+                hashed_password = self.encryption_manager.decrypt(hashed_password)
+            except Exception:
+                # Si falla, usar como está (puede ser que no esté cifrada)
+                pass
+
         return User(
             id=row["id"],
             username=row["username"],
             email=row["email"],
             full_name=row["full_name"],
-            hashed_password=row["hashed_password"],
+            hashed_password=hashed_password,
             role=UserRole(row["role"]),
             is_active=bool(row["is_active"]),
             created_at=datetime.fromisoformat(row["created_at"]),
