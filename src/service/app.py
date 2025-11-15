@@ -22,6 +22,9 @@ from src.memory import SessionManager
 from src.predictive import PatternAnalyzer, Recommender, AnomalyDetector
 from src.rag_engine import ask_question, load_vector_store
 from src.service.admin_routes import admin_router
+from src.service.auth_routes import auth_router
+from src.service.user_routes import users_router
+from src.auth import get_current_user, get_optional_user, require_permission, PermissionScope
 from src.service.schemas import (
     AnalyticsResponse,
     FeedbackRequest,
@@ -40,8 +43,10 @@ from src.service.schemas import (
 settings = get_settings()
 app = FastAPI(title="Asistente Organizacional", version="0.1.0")
 
-# Incluir rutas de administración
-app.include_router(admin_router)
+# Incluir routers
+app.include_router(auth_router)  # Rutas de autenticación
+app.include_router(users_router)  # Gestión de usuarios (admin)
+app.include_router(admin_router)  # Rutas de administración
 
 origins = [origin.strip() for origin in settings.allowed_origins.split(",")]
 app.add_middleware(
@@ -125,6 +130,7 @@ def ask(
     vector_store: Chroma = Depends(get_vector_store),
     tracker: AnalyticsTracker = Depends(get_analytics_tracker),
     session_manager: SessionManager = Depends(get_session_manager),
+    current_user: dict = Depends(get_optional_user),
 ) -> QueryResponse:
     logger.info(f"Recibida pregunta: {request.question[:50]}...")
 
@@ -192,6 +198,7 @@ def ask(
             metadata_filters=request.metadata_filters,
             response_time_ms=response_time,
             session_id=session_id,
+            user_id=current_user.get("user_id") if current_user else None,
         )
 
         return QueryResponse(
@@ -236,7 +243,10 @@ def feedback(
 
 
 @app.get("/analytics", response_model=AnalyticsResponse)
-def get_analytics(days: int = 7) -> AnalyticsResponse:
+def get_analytics(
+    days: int = 7,
+    current_user: dict = Depends(get_current_user),
+) -> AnalyticsResponse:
     """
     Obtiene métricas de analytics para el período especificado.
 
@@ -319,7 +329,10 @@ def delete_session(
 
 
 @app.get("/predictive/insights", response_model=PredictiveInsightsResponse)
-def get_predictive_insights(days: int = 7) -> PredictiveInsightsResponse:
+def get_predictive_insights(
+    days: int = 7,
+    current_user: dict = Depends(get_current_user),
+) -> PredictiveInsightsResponse:
     """
     Obtiene insights predictivos y análisis de tendencias.
 

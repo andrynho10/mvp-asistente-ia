@@ -18,17 +18,29 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.append(str(ROOT_DIR))
 
 from config.settings import get_settings
+from src.ui.auth import AuthManager, require_auth, render_user_menu
 
 settings = get_settings()
 API_BASE_URL = settings.api_base_url.rstrip("/")
 
-
 st.set_page_config(page_title="Chat - Asistente Organizacional", page_icon="💬", layout="wide")
+
+# Requerir autenticación
+user = require_auth()
+
+# Renderizar menú del usuario
+render_user_menu()
 
 
 def create_session() -> str:
     """Crea una nueva sesión conversacional."""
-    response = requests.post(f"{API_BASE_URL}/sessions", params={"max_history": 5}, timeout=10)
+    headers = AuthManager.get_headers()
+    response = requests.post(
+        f"{API_BASE_URL}/sessions",
+        params={"max_history": 5},
+        headers=headers,
+        timeout=10,
+    )
     response.raise_for_status()
     return response.json()["session_id"]
 
@@ -38,7 +50,8 @@ def ask_question(
 ) -> Dict[str, Any]:
     """Envía una pregunta con contexto de sesión."""
     payload = {"question": question, "session_id": session_id, "metadata_filters": metadata_filters}
-    response = requests.post(f"{API_BASE_URL}/ask", json=payload, timeout=60)
+    headers = AuthManager.get_headers()
+    response = requests.post(f"{API_BASE_URL}/ask", json=payload, headers=headers, timeout=60)
     response.raise_for_status()
     return response.json()
 
@@ -51,13 +64,15 @@ def send_feedback(question: str, answer: str, is_helpful: bool, comment: str | N
         "is_helpful": is_helpful,
         "comment": comment or "",
     }
-    response = requests.post(f"{API_BASE_URL}/feedback", json=payload, timeout=15)
+    headers = AuthManager.get_headers()
+    response = requests.post(f"{API_BASE_URL}/feedback", json=payload, headers=headers, timeout=15)
     response.raise_for_status()
 
 
 def delete_session(session_id: str) -> None:
     """Elimina una sesión."""
-    response = requests.delete(f"{API_BASE_URL}/sessions/{session_id}", timeout=10)
+    headers = AuthManager.get_headers()
+    response = requests.delete(f"{API_BASE_URL}/sessions/{session_id}", headers=headers, timeout=10)
     response.raise_for_status()
 
 

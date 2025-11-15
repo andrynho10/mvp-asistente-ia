@@ -1,12 +1,19 @@
 """
 Dashboard de administración para gestión de documentos y feedback.
 """
+import sys
+from pathlib import Path
+
 import requests
 import streamlit as st
 from datetime import datetime
-from pathlib import Path
+
+ROOT_DIR = Path(__file__).resolve().parents[2]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.append(str(ROOT_DIR))
 
 from config.settings import get_settings
+from src.ui.auth import AuthManager, require_auth, render_user_menu
 
 settings = get_settings()
 API_BASE_URL = settings.api_base_url
@@ -30,6 +37,11 @@ def format_datetime(iso_string: str) -> str:
         return iso_string
 
 
+def get_api_headers():
+    """Obtener headers con autenticación para requests a la API."""
+    return AuthManager.get_headers()
+
+
 # --- Configuración de página ---
 st.set_page_config(
     page_title="Panel de Administración",
@@ -38,8 +50,19 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+# Requerir autenticación
+user = require_auth()
+
+# Verificar que es admin
+if user["role"] != "admin":
+    st.error(f"❌ Acceso denegado. Se requieren permisos de administrador. Tu rol: {user['role']}")
+    st.stop()
+
 st.title("⚙️ Panel de Administración")
 st.markdown("Gestión de documentos y feedback del asistente organizacional")
+
+# Renderizar menú del usuario
+render_user_menu()
 
 # --- Sidebar con navegación ---
 st.sidebar.title("Navegación")
@@ -63,7 +86,7 @@ if page == "📁 Gestión de Documentos":
             st.rerun()
 
         try:
-            response = requests.get(f"{API_BASE_URL}/admin/documents", timeout=10)
+            response = requests.get(f"{API_BASE_URL}/admin/documents", headers=get_api_headers(), timeout=10)
             response.raise_for_status()
             data = response.json()
 
@@ -165,7 +188,7 @@ if page == "📁 Gestión de Documentos":
         st.subheader("📊 Estadísticas del Sistema")
 
         try:
-            response = requests.get(f"{API_BASE_URL}/admin/documents/stats", timeout=10)
+            response = requests.get(f"{API_BASE_URL}/admin/documents/stats", headers=get_api_headers(), timeout=10)
             response.raise_for_status()
             stats = response.json()
 
@@ -199,7 +222,7 @@ if page == "📁 Gestión de Documentos":
             if st.button("🔄 Ejecutar Re-ingesta", type="secondary"):
                 with st.spinner("Ejecutando re-ingesta... Esto puede tomar varios minutos."):
                     try:
-                        response = requests.post(f"{API_BASE_URL}/admin/ingest", timeout=300)
+                        response = requests.post(f"{API_BASE_URL}/admin/ingest", headers=get_api_headers(), timeout=300)
                         response.raise_for_status()
                         result = response.json()
 

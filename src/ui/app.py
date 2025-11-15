@@ -13,18 +13,27 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.append(str(ROOT_DIR))
 
 from config.settings import get_settings
+from src.ui.auth import AuthManager, require_auth, render_user_menu
 
 settings = get_settings()
 API_BASE_URL = settings.api_base_url.rstrip("/")
 
 st.set_page_config(page_title="Asistente Organizacional", layout="wide")
+
+# Requerir autenticación
+user = require_auth()
+
 st.title("Asistente Organizacional")
 st.caption("Consulta procedimientos, responsables e incidentes históricos.")
+
+# Renderizar menú del usuario
+render_user_menu()
 
 
 def ask_question(question: str, metadata_filters: Dict[str, Any] | None = None) -> Dict[str, Any]:
     payload = {"question": question, "metadata_filters": metadata_filters}
-    response = requests.post(f"{API_BASE_URL}/ask", json=payload, timeout=30)
+    headers = AuthManager.get_headers()
+    response = requests.post(f"{API_BASE_URL}/ask", json=payload, headers=headers, timeout=30)
     response.raise_for_status()
     return response.json()
 
@@ -36,7 +45,8 @@ def send_feedback(question: str, answer: str, is_helpful: bool, comment: str | N
         "is_helpful": is_helpful,
         "comment": comment or "",
     }
-    response = requests.post(f"{API_BASE_URL}/feedback", json=payload, timeout=15)
+    headers = AuthManager.get_headers()
+    response = requests.post(f"{API_BASE_URL}/feedback", json=payload, headers=headers, timeout=15)
     response.raise_for_status()
 
 

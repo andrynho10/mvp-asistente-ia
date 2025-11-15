@@ -19,6 +19,7 @@ from datetime import datetime, timedelta
 
 from config.settings import get_settings
 from src.analytics import AnalyticsTracker, MetricsCalculator
+from src.ui.auth import require_auth, render_user_menu
 
 
 def main():
@@ -28,8 +29,14 @@ def main():
         layout="wide",
     )
 
+    # Requerir autenticación
+    user = require_auth()
+
     st.title("📊 Dashboard de Analytics")
     st.markdown("Métricas de uso, satisfacción e impacto del Asistente Organizacional")
+
+    # Renderizar menú del usuario
+    render_user_menu()
 
     settings = get_settings()
     tracker = AnalyticsTracker(settings.analytics_db_path)

@@ -22,6 +22,28 @@ class Settings(BaseSettings):
     allowed_origins: str = Field(default="http://localhost:8501", alias="ALLOWED_ORIGINS")
     api_base_url: str = Field(default="http://localhost:8000", alias="API_BASE_URL")
 
+    # Configuración de Autenticación (RS1, RS2)
+    secret_key: str = Field(
+        default="dev-secret-key-change-in-production",
+        alias="SECRET_KEY",
+        description="Llave secreta para JWT (CAMBIAR EN PRODUCCIÓN)"
+    )
+    access_token_expire_minutes: int = Field(
+        default=30,
+        alias="ACCESS_TOKEN_EXPIRE_MINUTES",
+        description="Minutos antes de que expire el access token"
+    )
+    refresh_token_expire_minutes: int = Field(
+        default=10080,  # 7 días
+        alias="REFRESH_TOKEN_EXPIRE_MINUTES",
+        description="Minutos antes de que expire el refresh token"
+    )
+    auth_db_path: Path = Field(
+        default=Path("data/auth/auth.db"),
+        alias="AUTH_DB_PATH",
+        description="Ruta de la BD de autenticación"
+    )
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 
