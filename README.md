@@ -1,468 +1,102 @@
-# 🤖 Asistente Organizacional - MVP
+# Organizational Assistant: Local RAG for onboarding and internal procedures
 
-Prototipo basado en **RAG (Retrieval Augmented Generation)** para apoyar la capacitación e inducción de colaboradores, brindando acceso inteligente a procedimientos críticos, políticas y resoluciones históricas.
+A Retrieval-Augmented Generation (RAG) assistant that helps employees find answers in internal procedures, policies and past resolutions. It ingests company documents, indexes them in a local vector store, and answers questions with a local LLM, **grounded only in the retrieved context** and with references to the source documents. Everything runs on-premise: no document leaves the machine.
 
-**Stack tecnológico:**
-- 🧠 LLM: Ollama (llama3.1:8b-instruct local)
-- 📚 Vector Store: ChromaDB
-- 🔍 Embeddings: Sentence Transformers
-- ⚡ API: FastAPI
-- 🎨 UI: Streamlit
-- 🐍 Python 3.10+
+> Personal project (Oct–Dec 2025), built solo as an API-first evolution of the ideas behind my capstone project (a desktop RAG assistant built with a team of 3).
 
----
+## Problem
 
-## 📁 Estructura del Proyecto
+In many organizations, procedural knowledge is scattered across documents and depends on a few experienced people. New employees take longer to ramp up, and the same questions get answered over and over. Sending internal documents to external AI services is often not acceptable.
 
+## Solution
+
+A local RAG pipeline: documents are cleaned, chunked, enriched with metadata and embedded into ChromaDB; a FastAPI service retrieves the most relevant chunks and asks a local Llama model (via Ollama) to answer using that context only. A Streamlit UI lets users ask questions, filter by process, inspect the sources, and rate each answer.
+
+## Key features
+
+- **Multi-format ingestion:** `.txt`, `.md`, `.pdf`, `.docx`, `.csv` and `.json`, with text cleaning and recursive chunking.
+- **Metadata enrichment:** each chunk carries its source, its process (derived from the folder structure) and TF-IDF keywords, which are shown in the answer references.
+- **Grounded answers:** a constrained prompt forces the model to answer only from retrieved context and to say so when the context is not enough.
+- **Metadata filters:** narrow retrieval to a specific process or owner.
+- **100% local and private:** Llama 3.1 8B (quantized) through Ollama and local Sentence Transformers embeddings; no external API keys.
+- **REST API:** `/ask`, `/feedback` and `/health` endpoints with Pydantic schemas and auto-generated OpenAPI docs.
+- **Feedback loop and evaluation:** user ratings are stored for review, and an offline evaluation script scores answers against an expected-answer dataset.
+- **Operational scripts:** full re-ingestion, knowledge-base reset and an end-to-end diagnostic check.
+
+## Tech stack
+
+| Layer | Technologies |
+|---|---|
+| LLM | Ollama (Llama 3.1 8B Instruct, quantized; configurable) |
+| RAG | LangChain, ChromaDB, Sentence Transformers (all-MiniLM-L6-v2) |
+| API | FastAPI, Uvicorn, Pydantic / pydantic-settings |
+| UI | Streamlit |
+| Data processing | pandas, scikit-learn (TF-IDF), pypdf, docx2txt |
+| Tooling | Typer CLI, Ruff |
+
+## Architecture
+
+```mermaid
+flowchart LR
+    Docs["data/raw<br/>PDF, DOCX, MD, TXT, CSV, JSON"] --> Ingest["Ingestion<br/>clean · chunk · TF-IDF keywords"]
+    Ingest --> Emb["Embeddings<br/>Sentence Transformers"]
+    Emb --> VS[("ChromaDB<br/>vector store")]
+    UI["Streamlit UI"] -->|question + filters| API["FastAPI<br/>/ask · /feedback · /health"]
+    API --> Ret["Retriever<br/>top-k + metadata filters"]
+    Ret --> VS
+    Ret --> LLM["Ollama<br/>Llama 3.1 8B (local)"]
+    LLM -->|answer + sources| API
+    API -->|feedback| FB[("feedback.jsonl")]
 ```
-org-assistant/
-├── config/              # Configuración (settings.py, .env)
-├── data/
-│   ├── raw/            # 📂 Documentos originales (.txt, .pdf, .docx, etc.)
-│   ├── processed/      # 📝 Chunks procesados (generado automáticamente)
-│   └── embeddings/     # 🗄️ Vector store ChromaDB (generado automáticamente)
-├── src/
-│   ├── knowledge_base/ # Pipeline de ingesta y procesamiento
-│   ├── rag_engine/     # Lógica RAG (retrieval + generación)
-│   ├── service/        # API FastAPI
-│   ├── ui/             # Interfaz Streamlit
-│   └── evaluation/     # Métricas y evaluación offline
-├── reingest.py         # Script de reingesta completa
-├── reset_knowledge.py  # Script para limpiar vector store
-├── test_api.py         # Diagnóstico del sistema
-└── REINGESTA.md        # Guía detallada de reingesta
-```
 
----
+- **Separation of concerns:** `knowledge_base` (ingestion), `rag_engine` (retrieval and generation), `service` (API), `ui` (front end) and `evaluation` (offline scoring) are independent modules.
+- **Config via environment:** model, embedding model, paths and ports are set in `.env` through pydantic-settings, so the LLM can be swapped (for example `llama3.2:3b` on lighter hardware) without code changes.
 
-## 🚀 Instalación y Configuración
+<!-- SCREENSHOTS (pendiente: descomentar cuando se suban las imágenes a docs/screenshots/)
+## Screenshots
 
-### 1️⃣ Prerrequisitos
+![Assistant answer with sources](docs/screenshots/assistant-answer.png)
 
-**Software:**
-- Python 3.10 o superior
-- Git
-- **Ollama instalado** (para el modelo LLM local)
-  - Descarga desde: https://ollama.com
-  - Compatible con Windows, macOS y Linux
-  - Instala y asegúrate de que esté corriendo
-- Conexión a internet (solo para la instalación inicial y descarga de modelos)
+| Source references and context | API docs (Swagger) |
+|---|---|
+| ![References](docs/screenshots/references.png) | ![API docs](docs/screenshots/api-docs.png) |
 
-**Hardware recomendado:**
-- **Mínimo:** 8GB RAM, CPU moderna (puede funcionar solo con CPU)
-- **Recomendado:** 16GB+ RAM, GPU con 6GB+ VRAM (NVIDIA/AMD/Apple Silicon)
-- **Óptimo:** 32GB RAM, GPU con 8GB+ VRAM
+ Capturas a tomar (ver instrucciones.md):
+1. assistant-answer.png: Streamlit con una pregunta respondida (usar el documento de ejemplo).
+2. references.png: sección "Referencias" + "Contexto utilizado" expandido.
+3. api-docs.png: http://localhost:8000/docs mostrando los endpoints. 
 
-**Nota sobre modelos:**
-- `llama3.1:8b-instruct-q4_K_M` (recomendado): ~5GB de RAM/VRAM
-- `llama3.2:3b` (alternativa ligera): ~2GB de RAM/VRAM
-- Sin GPU: El modelo funcionará en CPU, será más lento pero funcional
+-->
 
-### 2️⃣ Clonar el repositorio
+## How to run
+
+**Requirements:** Python 3.10+, [Ollama](https://ollama.com) installed and running, ~8 GB RAM (16 GB recommended).
 
 ```bash
-git clone <URL_DEL_REPOSITORIO>
-cd org-assistant
-```
-
-### 3️⃣ Crear entorno virtual
-
-**Windows:**
-```bash
+git clone https://github.com/andrynho10/mvp-asistente-ia.git
+cd mvp-asistente-ia
 python -m venv .venv
-.venv\Scripts\activate
-```
-
-**Linux/Mac:**
-```bash
-python -m venv .venv
-source .venv/bin/activate
-```
-
-### 4️⃣ Instalar dependencias
-
-```bash
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -e .
-```
+cp .env.example .env             # Windows: copy .env.example .env
 
-Para desarrollo (incluye pytest, ruff):
-```bash
-pip install -e ".[dev]"
-```
-
-### 5️⃣ Configurar variables de entorno
-
-```bash
-# Windows
-copy .env.example .env
-
-# Linux/Mac
-cp .env.example .env
-```
-
-**⚠️ IMPORTANTE:** Antes de continuar, asegúrate de tener Ollama corriendo y descarga el modelo:
-
-```bash
-# Verifica que Ollama esté instalado
-ollama --version
-
-# Descarga el modelo recomendado (Llama 3.1 8B cuantizado)
-ollama pull llama3.1:8b-instruct-q4_K_M
-
-# Verifica que el modelo esté disponible
-ollama list
-```
-
-El archivo `.env` ya tiene la configuración correcta por defecto:
-- `OLLAMA_BASE_URL=http://localhost:11434` (puerto por defecto de Ollama)
-- `OLLAMA_MODEL=llama3.1:8b-instruct-q4_K_M` (modelo recomendado)
-
-### 6️⃣ Agregar documentos
-
-Coloca tus documentos organizacionales en `data/raw/`:
-
-```bash
-data/raw/
-├── politicas/
-│   └── trabajo_remoto.pdf
-├── procedimientos/
-│   └── reembolsos.md
-└── ejemplo_documento.txt  # ← Ya incluido como ejemplo
-```
-
-**Formatos soportados:** `.txt`, `.md`, `.pdf`, `.docx`, `.csv`, `.json`
-
-> 💡 **Tip:** Organiza los documentos en subcarpetas por proceso/departamento para facilitar filtros de búsqueda.
-
-### 7️⃣ Ejecutar ingesta inicial
-
-```bash
-python reingest.py
-```
-
-Este script:
-- Procesa todos los documentos de `data/raw/`
-- Extrae keywords con TF-IDF
-- Genera embeddings
-- Construye el vector store
-
-⏱️ **Tiempo estimado:** 2-5 minutos (depende de cantidad de documentos)
-
-### 8️⃣ Verificar instalación
-
-```bash
-python test_api.py
-```
-
-Si todos los tests pasan ✅, estás listo para usar el sistema.
-
-### 9️⃣ Verificar que hay documentos en el vector store
-
-```bash
-python check_docs.py
-```
-
-Este script muestra cuántos documentos hay en tu base de conocimientos. Si sale 0, ejecuta `python reingest.py`.
-
----
-
-## 🔒 Confirmación de Modelo Local (100% Privado)
-
-Tu asistente funciona **completamente en local** sin enviar datos a internet:
-
-### ✅ Cómo verificarlo:
-
-**1. Revisa la configuración actual:**
-```bash
-python -c "from config.settings import get_settings; s = get_settings(); print(f'Modelo: {s.ollama_model}'); print(f'URL: {s.ollama_base_url}')"
-```
-
-Deberías ver:
-```
-Modelo: llama3.1:8b-instruct-q4_K_M
-URL: http://localhost:11434
-```
-
-**2. Monitorea el uso de recursos:**
-- Abre el monitor de sistema de tu SO (Administrador de Tareas en Windows, Activity Monitor en Mac, htop en Linux)
-- Observa el uso de CPU/GPU mientras haces una consulta
-- Verás un pico de uso porque el modelo se ejecuta localmente en tu máquina
-
-**3. Prueba sin internet:**
-- Desconecta tu WiFi
-- Haz una consulta
-- Funcionará perfectamente porque todo es local
-
-**Garantías de privacidad:**
-- ✅ Ningún dato sale de tu máquina
-- ✅ No hay API keys de servicios externos
-- ✅ Puedes apagar Ollama cuando no lo uses
-- ✅ El modelo se ejecuta 100% en tu hardware local (CPU/GPU)
-
----
-
-## 🎯 Uso del Sistema
-
-### Iniciar los servicios
-
-**Terminal 1 - Servidor API:**
-```bash
-uvicorn src.service.app:app --reload
-```
-
-**Terminal 2 - Interfaz Streamlit:**
-```bash
-streamlit run src/ui/app.py
-```
-
-### Acceder a la interfaz
-
-Abre tu navegador en:
-- **Streamlit UI:** http://localhost:8501
-- **API Docs:** http://localhost:8000/docs
-- **Health Check:** http://localhost:8000/health
-
-### Hacer preguntas
-
-Desde la interfaz Streamlit:
-1. Escribe tu pregunta (ej: "¿Cuál es el proceso para solicitar vacaciones?")
-2. (Opcional) Agrega filtros por proceso o responsable
-3. Haz clic en "Consultar"
-4. Revisa la respuesta y las referencias a documentos
-
-### Gestionar Ollama (liberar recursos cuando no lo uses)
-
-Ollama consume recursos solo durante las consultas. Para liberar completamente la memoria:
-
-**Windows:**
-```bash
-# Cerrar desde el Administrador de Tareas o:
-taskkill /IM ollama.exe /F
-
-# Para reiniciar: busca "Ollama" en el menú inicio
-```
-
-**macOS:**
-```bash
-# Detener:
-brew services stop ollama
-
-# Iniciar:
-brew services start ollama
-```
-
-**Linux:**
-```bash
-# Detener:
-sudo systemctl stop ollama
-
-# Iniciar:
-sudo systemctl start ollama
-```
-
----
-
-## 🔄 Actualizar Documentos
-
-### Reingesta completa (desde cero)
-
-```bash
-# 1. Resetear base de conocimientos
-python reset_knowledge.py
-
-# 2. Actualizar/agregar documentos en data/raw/
-
-# 3. Reingestar todo
-python reingest.py
-
-# 4. Reiniciar servidor FastAPI (Ctrl+C y volver a ejecutar)
-```
-
-📖 **Más detalles:** Ver [REINGESTA.md](REINGESTA.md)
-
----
-
-## 🐛 Solución de Problemas
-
-### Error: "No se puede conectar con Ollama"
-
-**Solución:** Asegúrate de que Ollama esté corriendo y el modelo esté descargado.
-
-```bash
-# Verificar que Ollama esté corriendo
-ollama list
-
-# Si no está instalado, descarga desde: https://ollama.com
-
-# Descargar el modelo si no está disponible
 ollama pull llama3.1:8b-instruct-q4_K_M
 ```
 
-### Error: "El vector store no se ha inicializado"
-
-**Solución:** Ejecuta la ingesta:
+Put your documents in `data/raw/` (subfolders become the "process" metadata), then:
 
 ```bash
-python reingest.py
+python reingest.py                         # build the knowledge base
+uvicorn src.service.app:app --reload       # API → http://localhost:8000/docs
+streamlit run src/ui/app.py                # UI  → http://localhost:8501
 ```
 
-### Error: "Internal Server Error" en Streamlit
+Run `python test_api.py` for an end-to-end diagnostic.
 
-**Solución:** Revisa los logs del servidor FastAPI. Causas comunes:
-- El vector store no existe → Ejecuta `python reingest.py`
-- Ollama no está corriendo → Verifica con `ollama list`
-- El modelo no está descargado → Ejecuta `ollama pull llama3.1:8b-instruct-q4_K_M`
-- Falta alguna dependencia → Ejecuta `pip install -e .`
+## My role
 
-### Los documentos no se reflejan en las respuestas
+Personal project, designed and built end to end by me:
 
-**Solución:** Debes reingestar Y reiniciar el servidor:
-
-```bash
-python reingest.py
-# Luego Ctrl+C en el servidor y volver a ejecutar:
-uvicorn src.service.app:app --reload
-```
-
-### Diagnóstico completo del sistema
-
-```bash
-python test_api.py
-```
-
-Este script verifica:
-- ✅ Configuración cargada correctamente
-- ✅ Vector store funcional
-- ✅ Conexión con Ollama (modelo local)
-- ✅ Pipeline completo end-to-end
-
----
-
-## 📚 Scripts Útiles
-
-| Script | Descripción |
-|--------|-------------|
-| `python reingest.py` | Reingesta completa de documentos |
-| `python reset_knowledge.py` | Limpia vector store y procesados |
-| `python test_api.py` | Diagnóstico completo del sistema |
-| `uvicorn src.service.app:app --reload` | Iniciar servidor API |
-| `streamlit run src/ui/app.py` | Iniciar interfaz web |
-
----
-
-## 🤝 Contribución al Proyecto
-
-### Para el equipo de desarrollo
-
-1. **Crea una rama para tu feature:**
-   ```bash
-   git checkout -b feature/nombre-descriptivo
-   ```
-
-2. **Instala dependencias de desarrollo:**
-   ```bash
-   pip install -e ".[dev]"
-   ```
-
-3. **Ejecuta los tests antes de hacer commit:**
-   ```bash
-   pytest
-   ruff check .
-   ```
-
-4. **Haz commit y push:**
-   ```bash
-   git add .
-   git commit -m "Descripción clara del cambio"
-   git push origin feature/nombre-descriptivo
-   ```
-
----
-
-## ⚙️ Configuración Avanzada
-
-### Cambiar el tamaño de chunks
-
-Edita `src/knowledge_base/ingest.py`:
-
-```python
-DEFAULT_SPLITTER = RecursiveCharacterTextSplitter(
-    chunk_size=1000,      # Caracteres por chunk
-    chunk_overlap=150,    # Solapamiento entre chunks
-)
-```
-
-### Cambiar el modelo de embeddings
-
-Edita `.env`:
-
-```bash
-# Para mejor soporte multilingüe/español:
-EMBEDDING_MODEL=sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
-```
-
-**⚠️ Importante:** Si cambias el modelo de embeddings, debes hacer una reingesta completa.
-
-### Cambiar el modelo LLM
-
-Primero descarga el modelo con Ollama:
-
-```bash
-# Modelo más pequeño y rápido (3B):
-ollama pull llama3.2:3b
-
-# Modelo equilibrado (recomendado, 8B):
-ollama pull llama3.1:8b-instruct-q4_K_M
-
-# Modelo más grande y preciso (7B):
-ollama pull mistral:7b
-```
-
-Luego edita `.env`:
-
-```bash
-# Ejemplo para cambiar al modelo más pequeño:
-OLLAMA_MODEL=llama3.2:3b
-
-# O al modelo Mistral:
-OLLAMA_MODEL=mistral:7b
-```
-
----
-
-## 📝 Notas Importantes
-
-- **Seguridad:** Nunca subas el archivo `.env` al repositorio (está en `.gitignore`)
-- **Datos:** Los documentos en `data/raw/` NO se suben al repo por defecto (solo ejemplos)
-- **Modelo Local:** El modelo LLM se ejecuta localmente en tu máquina. Asegúrate de tener Ollama corriendo
-- **Recursos:** El modelo 8B cuantizado usa ~5GB de VRAM/RAM. Puedes usar modelos más pequeños (3B) si tienes recursos limitados
-- **Performance:** El primer arranque descarga modelos (~90MB embeddings + ~5GB LLM), es normal que tome tiempo
-- **Feedback:** El sistema guarda feedback en `data/feedback/feedback.jsonl` para análisis
-
----
-
-## 🔗 Enlaces Útiles
-
-- [Descargar Ollama](https://ollama.com)
-- [Modelos disponibles en Ollama](https://ollama.com/library)
-- [ChromaDB Documentation](https://docs.trychroma.com/)
-- [FastAPI Documentation](https://fastapi.tiangolo.com/)
-- [Streamlit Documentation](https://docs.streamlit.io/)
-
----
-
-## 👥 Equipo
-
-**UDLA Prototype Team**
-
-Para preguntas o soporte, contacta al equipo de desarrollo.
-
----
-
-## 📄 Licencia
-
-MIT License - Ver archivo LICENSE para más detalles.
-
----
-
-¿Preguntas? Revisa [REINGESTA.md](REINGESTA.md) para más detalles sobre el manejo de documentos.
+- Architecture: API-first design (FastAPI service + Streamlit client), configuration via environment settings, and a CLI for re-ingestion and offline evaluation.
+- RAG pipeline: multi-format ingestion, metadata enrichment, filtered retrieval and grounded prompting.
+- Migrated generation from a hosted LLM API (Groq) to a fully local model with Ollama, so documents never leave the machine.
