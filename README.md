@@ -52,21 +52,11 @@ flowchart LR
 - **Separation of concerns:** `knowledge_base` (ingestion), `rag_engine` (retrieval and generation), `service` (API), `ui` (front end) and `evaluation` (offline scoring) are independent modules.
 - **Config via environment:** model, embedding model, paths and ports are set in `.env` through pydantic-settings, so the LLM can be swapped (for example `llama3.2:3b` on lighter hardware) without code changes.
 
-<!-- SCREENSHOTS (pendiente: descomentar cuando se suban las imágenes a docs/screenshots/)
 ## Screenshots
 
-![Assistant answer with sources](docs/screenshots/assistant-answer.png)
-
-| Source references and context | API docs (Swagger) |
+| Streamlit UI | REST API (OpenAPI docs) |
 |---|---|
-| ![References](docs/screenshots/references.png) | ![API docs](docs/screenshots/api-docs.png) |
-
- Capturas a tomar (ver instrucciones.md):
-1. assistant-answer.png: Streamlit con una pregunta respondida (usar el documento de ejemplo).
-2. references.png: sección "Referencias" + "Contexto utilizado" expandido.
-3. api-docs.png: http://localhost:8000/docs mostrando los endpoints. 
-
--->
+| ![Assistant UI](docs/screenshots/assistant-ui.png) | ![API docs](docs/screenshots/api-docs.png) |
 
 ## How to run
 
